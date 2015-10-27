@@ -1,0 +1,4 @@
+[package]
+name = "rustp2p"
+version = "0.1.0"
+authors = ["Dan Rammer <hamersaw@gmail.com>"]
