@@ -6,8 +6,7 @@ use event::Event;
 
 use std::collections::BTreeMap;
 use std::io::{Read,Write};
-use std::net::{TcpListener,TcpStream};
-use std::net::{SocketAddrV4};
+use std::net::{SocketAddrV4,TcpListener,TcpStream};
 use std::sync::{Arc,RwLock};
 use std::sync::mpsc::{channel,Receiver};
 use std::thread;
@@ -176,7 +175,7 @@ impl OmniscientService {
                             stream.write_all(&vec).unwrap();
                         },
                         x if x == MessageType::GenericMsg as u8 => {
-                            tx.send(Event::GenericMsgEvent(buf[1..bytes].to_vec())).unwrap();
+                            tx.send(Event::GenericMsgEvent(buf[1..bytes].to_vec(), stream)).unwrap();
                         }
                         _ => panic!("Unrecognized message type: {}", buf[0]),
                     };

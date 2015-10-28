@@ -10,7 +10,8 @@ pub enum MessageType {
     JoinMsg = 1,
     LookupMsg = 2,
     AddrMsg = 3,
-    GenericMsg = 4,
+    RegisterTokenMsg = 4,
+    GenericMsg = 255,
 }
 
 #[derive(RustcEncodable,RustcDecodable)]
