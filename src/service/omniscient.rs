@@ -200,13 +200,14 @@ impl OmniscientService {
 
         add_token(&mut peer_table, token, socket_addr)
     }
+    
+    pub fn send_msg(&self, token: u64, msg: Vec<u8>) -> Result<(), String> {
+        unimplemented!();
+    }
 
-    //TODO change to recv a Vec<u8>
-    /*pub fn send_msg(&self, msg: &GenericMsg) -> Result<(),String> {
-        //TODO actually need to route through the cluster
-       
-        msg.execute()
-    }*/
+    pub fn broadcast_msg(&self, msg: Vec<u8>) -> Result<(), String> {
+        unimplemented!();
+    }
 
     pub fn print(&self) {
         println!("ID:{}\ntoken:{}", self.id, self.token);

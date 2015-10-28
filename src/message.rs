@@ -174,5 +174,4 @@ mod tests{
         let encoded = encode(&addr_msg, bincode::SizeLimit::Infinite).unwrap();
         let _: AddrMsg = decode(&encoded[..]).unwrap();
     }
-    //TODO add rest of serialization methods
 }
