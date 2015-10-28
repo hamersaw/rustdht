@@ -1,6 +1,11 @@
 extern crate bincode;
 use bincode::rustc_serialize::{decode,encode};
 
+extern crate capnp;
+pub mod message_capnp {
+    include!(concat!(env!("OUT_DIR"), "/message_capnp.rs"));
+}
+
 use message::{AddrMsg,Message,MessageType,JoinMsg,LookupMsg,ResultMsg};
 use event::Event;
 
@@ -36,7 +41,27 @@ impl OmniscientService {
         match self.seed_addr {
             Some(seed_addr) => {
                 let mut stream = TcpStream::connect(seed_addr).unwrap();
-                
+ 
+                //create capnproto join message
+                let mut join_message = capnp::message::Builder::new_default();
+                {
+                    let mut msg = join_message.init_root::<message_capnp::join_msg::Builder>();
+                    msg.set_id(&self.id.clone()[..]);
+                    msg.set_token(self.token.clone());
+
+                    let ip: String = format!("{}", self.listen_addr.ip());
+                    msg.set_ip(&ip[..]);
+                    msg.set_port(self.listen_addr.port());
+                }
+
+                //send join message
+                //capnp::serialize::write_message(&mut stream, &join_message);
+                capnp::serialize::write_message(&mut ::std::io::stdout(), &join_message).unwrap();
+
+                //TODO read capnproto result message
+                let message_reader = capnp::serialize::read_message(&mut stream, ::capnp::message::ReaderOptions::new()).unwrap();
+                let result_message = message_reader.get_root::<message_capnp::result_msg::Reader>();
+
                 //create join message and serialize to vector
                 let join_msg = JoinMsg::new(self.id.clone(), self.token.clone(), self.listen_addr.clone());
                 let mut vec = encode(&join_msg, bincode::SizeLimit::Infinite).unwrap();

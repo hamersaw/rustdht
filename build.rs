@@ -1,5 +1,6 @@
 extern crate capnpc;
 
 fn main() {
-    ::capnpc::compile("capnp", &["capnp/join.capnp"]).unwrap();
+    ::capnpc::compile("capnproto", &["capnproto/message.capnp"]).unwrap();
+    println!("Succesfully compiled capnproto files");
 }

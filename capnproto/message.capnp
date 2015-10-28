@@ -7,6 +7,11 @@ struct JoinMsg {
 	port @3 :UInt16;
 }
 
+struct ResultMsg {
+	success @0 :Bool;
+	errMsg @1 :Text;
+}
+
 struct TestMsg {
 	msg @0 :Text;
 }
