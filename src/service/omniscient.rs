@@ -2,9 +2,7 @@ extern crate bincode;
 use bincode::rustc_serialize::{decode,encode};
 
 extern crate capnp;
-pub mod message_capnp {
-    include!(concat!(env!("OUT_DIR"), "/message_capnp.rs"));
-}
+use message_capnp;
 
 use message::{AddrMsg,Message,MessageType,JoinMsg,LookupMsg,ResultMsg};
 use event::Event;
@@ -56,7 +54,6 @@ impl OmniscientService {
 
                 //send join message
                 //capnp::serialize::write_message(&mut stream, &join_message);
-                capnp::serialize::write_message(&mut ::std::io::stdout(), &join_message).unwrap();
 
                 //TODO read capnproto result message
                 let message_reader = capnp::serialize::read_message(&mut stream, ::capnp::message::ReaderOptions::new()).unwrap();
