@@ -1,15 +1,16 @@
-extern crate bincode;
-use bincode::rustc_serialize::{decode,encode};
+//extern crate bincode;
+//use bincode::rustc_serialize::{decode,encode};
 
 extern crate capnp;
 use message_capnp;
 
-use message::{AddrMsg,Message,MessageType,JoinMsg,LookupMsg,ResultMsg};
+//use message::{AddrMsg,Message,MessageType,JoinMsg,LookupMsg,ResultMsg};
 use event::Event;
 
 use std::collections::BTreeMap;
 use std::io::{Read,Write};
-use std::net::{SocketAddrV4,TcpListener,TcpStream};
+use std::net::{Ipv4Addr,SocketAddrV4,TcpListener,TcpStream};
+use std::str::FromStr;
 use std::sync::{Arc,RwLock};
 use std::sync::mpsc::{channel,Receiver};
 use std::thread;
@@ -39,27 +40,35 @@ impl OmniscientService {
         match self.seed_addr {
             Some(seed_addr) => {
                 let mut stream = TcpStream::connect(seed_addr).unwrap();
- 
-                //create capnproto join message
-                let mut join_message = capnp::message::Builder::new_default();
+
+                //create join message
+                let mut msg_builder = capnp::message::Builder::new_default();
                 {
-                    let mut msg = join_message.init_root::<message_capnp::join_msg::Builder>();
-                    msg.set_id(&self.id.clone()[..]);
-                    msg.set_token(self.token.clone());
+                    let msg = msg_builder.init_root::<message_capnp::message::Builder>();
+                    let mut join_msg = msg.get_message().init_join_msg();
+                    join_msg.set_id(&self.id.clone()[..]);
+                    join_msg.set_token(self.token.clone());
 
                     let ip: String = format!("{}", self.listen_addr.ip());
-                    msg.set_ip(&ip[..]);
-                    msg.set_port(self.listen_addr.port());
+                    join_msg.set_ip(&ip[..]);
+                    join_msg.set_port(self.listen_addr.port());
                 }
 
                 //send join message
-                //capnp::serialize::write_message(&mut stream, &join_message);
-
-                //TODO read capnproto result message
-                let message_reader = capnp::serialize::read_message(&mut stream, ::capnp::message::ReaderOptions::new()).unwrap();
-                let result_message = message_reader.get_root::<message_capnp::result_msg::Reader>();
-
-                //create join message and serialize to vector
+                capnp::serialize::write_message(&mut stream, &msg_builder).unwrap();
+                
+                //read capnproto result message
+                let msg_reader = capnp::serialize::read_message(&mut stream, ::capnp::message::ReaderOptions::new()).unwrap();
+                let msg = msg_reader.get_root::<message_capnp::message::Reader>().unwrap();
+                match msg.get_message().which() {
+                    Ok(message_capnp::message::message::ResultMsg(result_msg)) => {
+                        println!("recv result msg with success: {}", result_msg.get_success());
+                    },
+                    Ok(_) => panic!("Unknown message type"),
+                    Err(capnp::NotInSchema(e)) => panic!("Error capnp::NotInSchema: {}", e),
+                };
+                
+                /*//create join message and serialize to vector
                 let join_msg = JoinMsg::new(self.id.clone(), self.token.clone(), self.listen_addr.clone());
                 let mut vec = encode(&join_msg, bincode::SizeLimit::Infinite).unwrap();
 
@@ -78,7 +87,7 @@ impl OmniscientService {
 
                 let result_msg: ResultMsg = decode(&buf[1..bytes]).unwrap();
                 result_msg.print();
-                //TODO handle failed result message
+                //TODO handle failed result message*/
             },
             None => {},
         }
@@ -106,12 +115,88 @@ impl OmniscientService {
                 let tx = tx.clone();
 
                 thread::spawn(move || {
-                    let mut stream = match stream {
-                        Ok(stream) => stream,
-                        Err(e) => panic!("{}", e),
-                    };
+                    let mut stream = stream.unwrap();
 
-                    //read from stream into buf
+                    //read capnproto result message
+                    let msg_reader = capnp::serialize::read_message(&mut stream, ::capnp::message::ReaderOptions::new()).unwrap();
+                    let msg = msg_reader.get_root::<message_capnp::message::Reader>().unwrap();
+
+                    //parse out message
+                    match msg.get_message().which() {
+                        Ok(message_capnp::message::message::GenericMsg(generic_msg)) => {
+                            tx.send(Event::GenericMsgEvent(generic_msg.get_data().unwrap().to_vec(), stream)).unwrap();
+                        },
+                        Ok(message_capnp::message::message::JoinMsg(join_msg)) => {
+                            tx.send(Event::JoinMsgEvent(join_msg.get_id().unwrap().to_string(), join_msg.get_token(), join_msg.get_ip().unwrap().to_string(), join_msg.get_port())).unwrap();
+
+                            //create socket address
+                            let ip_addr = Ipv4Addr::from_str(join_msg.get_ip().unwrap()).unwrap();
+                            let socket_addr = SocketAddrV4::new(ip_addr, join_msg.get_port());
+
+                            //create result message
+                            let mut msg_builder = capnp::message::Builder::new_default();
+                            let mut peer_table = peer_table.write().unwrap();
+                            {
+                                let msg = msg_builder.init_root::<message_capnp::message::Builder>();
+                                let mut result_msg = msg.get_message().init_result_msg();
+
+                                //add token and socket address to peer table
+                                match add_token(&mut peer_table, join_msg.get_token(), socket_addr) {
+                                    Ok(token_added) => {
+                                        println!("token added : {}", token_added);
+                                        result_msg.set_success(token_added);
+                                        result_msg.set_err_msg("");
+                                    },
+                                    Err(e) => {
+                                        println!("error on token add : {}", e);
+                                        result_msg.set_success(false);
+                                        result_msg.set_err_msg(&format!("{}", e)[..]);
+                                    }
+                                };
+                            }
+
+                            //send result message
+                            capnp::serialize::write_message(&mut stream, &msg_builder).unwrap();
+
+                            println!("TODO if you added it then send join message to all of your peers");
+                            for (peer_token, peer_socket_addr) in peer_table.iter() {
+                                if join_msg.get_token() == *peer_token {
+                                    continue;
+                                }
+
+                                //let mut stream = TcpStream::connect(peer_socket_addr).unwrap();
+                            }
+                        },
+                        Ok(message_capnp::message::message::LookupMsg(lookup_msg)) => {
+                            tx.send(Event::LookupMsgEvent(lookup_msg.get_token())).unwrap();
+
+                            //create result message
+                            /*let mut msg_builder = capnp::message::Builder::new_default();
+                            {
+                                let msg = msg_builder.init_root::<message_capnp::message::Builder>();
+
+                                //add token and socket address to peer table
+                                let mut peer_table = peer_table.read().unwrap();
+                                match lookup(&peer_table, lookup_msg.get_token()) {
+                                    Some(socket_addr) => {
+                                        //let mut addr_msg = msg.get_message().init_addr_msg();
+
+                                    },
+                                    None => {
+                                        let mut result_msg = msg.get_message().init_result_msg();
+
+                                    },
+                                };
+                            }
+
+                            //send result message
+                            capnp::serialize::write_message(&mut stream, &msg_builder).unwrap();*/
+                        },
+                        Ok(_) => panic!("Unknown message type"),
+                        Err(capnp::NotInSchema(e)) => panic!("Error capnp::NotInSchema: {}", e),
+                    };
+                
+                    /*//read from stream into buf
                     let mut buf = [0; 1024];
                     let bytes = stream.read(&mut buf).unwrap();
 
@@ -200,7 +285,7 @@ impl OmniscientService {
                             tx.send(Event::GenericMsgEvent(buf[1..bytes].to_vec(), stream)).unwrap();
                         }
                         _ => panic!("Unrecognized message type: {}", buf[0]),
-                    };
+                    };*/
                 });
             }
         });

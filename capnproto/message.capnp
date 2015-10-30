@@ -13,7 +13,7 @@ struct ResultMsg {
 }
 
 struct Message {
-	union {
+	message :union {
 		genericMsg :group {
 			data @0 :Data;
 		}
@@ -35,6 +35,5 @@ struct Message {
 			success @9 :Bool;
 			errMsg @10 :Text;
 		}
-		
 	}
 }
