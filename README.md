@@ -7,7 +7,7 @@ This library is a generic p2p framework written in rust.
 
 Examples
 --------
-cqdb - https://github.com/hamersaw/cqdb.git
+cqdb - https://github.com/hamersaw/cqdb
 
 TODO
 ----
