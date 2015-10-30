@@ -1,10 +1,6 @@
-//extern crate bincode;
-//use bincode::rustc_serialize::{decode,encode};
-
 extern crate capnp;
 use message_capnp;
 
-//use message::{AddrMsg,Message,MessageType,JoinMsg,LookupMsg,ResultMsg};
 use event::Event;
 
 use std::collections::BTreeMap;
@@ -67,27 +63,6 @@ impl OmniscientService {
                     Ok(_) => panic!("Unknown message type"),
                     Err(capnp::NotInSchema(e)) => panic!("Error capnp::NotInSchema: {}", e),
                 };
-                
-                /*//create join message and serialize to vector
-                let join_msg = JoinMsg::new(self.id.clone(), self.token.clone(), self.listen_addr.clone());
-                let mut vec = encode(&join_msg, bincode::SizeLimit::Infinite).unwrap();
-
-                //write message to stream
-                vec.insert(0, MessageType::JoinMsg as u8);
-                stream.write_all(&vec).unwrap();
-
-                //read from stream into buf
-                let mut buf = [0; 32];
-                let bytes = stream.read(&mut buf).unwrap();
-
-                //parse out message - buf[0] = msg_type
-                if buf[0] != MessageType::ResultMsg as u8 {
-                    panic!("Unexpected message type {} returned", buf[0]);
-                }
-
-                let result_msg: ResultMsg = decode(&buf[1..bytes]).unwrap();
-                result_msg.print();
-                //TODO handle failed result message*/
             },
             None => {},
         }
@@ -195,97 +170,6 @@ impl OmniscientService {
                         Ok(_) => panic!("Unknown message type"),
                         Err(capnp::NotInSchema(e)) => panic!("Error capnp::NotInSchema: {}", e),
                     };
-                
-                    /*//read from stream into buf
-                    let mut buf = [0; 1024];
-                    let bytes = stream.read(&mut buf).unwrap();
-
-                    //parse out message - buf[0] = msg_type
-                    match buf[0] {
-                        x if x == MessageType::JoinMsg as u8 => {
-                            let join_msg: JoinMsg = decode(&buf[1..bytes]).unwrap();
-                            tx.send(Event::JoinMsgEvent(join_msg.get_id(), join_msg.get_token(), join_msg.get_socket_addr())).unwrap();
-
-                            //add token and socket address to peer table
-                            let mut peer_table = peer_table.write().unwrap();
-                            let result_msg: ResultMsg = match add_token(&mut peer_table, join_msg.get_token(), join_msg.get_socket_addr()) {
-                                Ok(token_added) => ResultMsg::new(token_added, None),
-                                Err(e) => ResultMsg::new(false, Some(e)),
-                            };
-
-                            //serialize result message
-                            let mut vec = encode(&result_msg, bincode::SizeLimit::Infinite).unwrap();
- 
-                            //write message to stream
-                            vec.insert(0, MessageType::ResultMsg as u8);
-                            stream.write_all(&vec).unwrap();
-
-                            //if token was added send address back and forward join to every peer
-                            if result_msg.get_success() {
-                                //TODO send address message to joining node
-
-                                for (peer_token, peer_socket_addr) in peer_table.iter() {
-                                    if join_msg.get_token() == *peer_token {
-                                        continue;
-                                    }
-
-                                    let mut stream = TcpStream::connect(peer_socket_addr).unwrap();
-                
-                                    //create join message and serialize to vector
-                                    let mut vec = encode(&join_msg, bincode::SizeLimit::Infinite).unwrap();
-
-                                    //write message to stream
-                                    vec.insert(0, MessageType::JoinMsg as u8);
-                                    stream.write(&vec).unwrap();
-
-                                    //read from stream into buf
-                                    let mut buf = [0; 32];
-                                    let bytes = stream.read(&mut buf).unwrap();
-
-                                    //parse out message - buf[0] = msg_type
-                                    if buf[0] != MessageType::ResultMsg as u8 {
-                                        panic!("Unexpected message type {} returned", buf[0]);
-                                    }
-
-                                    let result_msg: ResultMsg = decode(&buf[1..bytes]).unwrap();
-                                    result_msg.print();
-                                    //TODO handle a failure in the result message
-                                }
-                            }
-                        },
-                        x if x == MessageType::AddrMsg as u8 => {
-                            //TODO process address message - add token
-                        },
-                        x if x == MessageType::LookupMsg as u8 => {
-                            let lookup_msg: LookupMsg = decode(&buf[1..bytes]).unwrap();
-                            tx.send(Event::LookupMsgEvent(lookup_msg.get_token())).unwrap();
-
-                            //process the lookup
-                            let peer_table = peer_table.read().unwrap();
-                            let vec =  match lookup(&peer_table, lookup_msg.get_token()) {
-                                Some(socket_addr) => {
-                                    let addr_msg = AddrMsg::new(socket_addr);
-                                    //let mut vec = addr_msg.to_vec();
-                                    let mut vec = encode(&addr_msg, bincode::SizeLimit::Infinite).unwrap();
-                                    vec.insert(0, MessageType::AddrMsg as u8);
-                                    vec
-                                },
-                                None => {
-                                    let result_msg = ResultMsg::new(false,Some("Unable to determine socket address for token".to_string()));
-                                    let mut vec = encode(&result_msg, bincode::SizeLimit::Infinite).unwrap();
-                                    vec.insert(0, MessageType::ResultMsg as u8);
-                                    vec
-                                },
-                            };
-
-                            //write message to stream
-                            stream.write_all(&vec).unwrap();
-                        },
-                        x if x == MessageType::GenericMsg as u8 => {
-                            tx.send(Event::GenericMsgEvent(buf[1..bytes].to_vec(), stream)).unwrap();
-                        }
-                        _ => panic!("Unrecognized message type: {}", buf[0]),
-                    };*/
                 });
             }
         });
