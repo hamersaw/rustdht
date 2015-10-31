@@ -33,29 +33,6 @@ impl OmniscientService {
     }
 
     pub fn start(&self) -> (JoinHandle<()>, Receiver<Event>) {
-        //send join message to seed_addr
-        match self.seed_addr {
-            Some(seed_addr) => {
-                let mut stream = TcpStream::connect(seed_addr).unwrap();
-
-                //create join message
-                let mut msg_builder = capnp::message::Builder::new_default();
-                {
-                    let msg = msg_builder.init_root::<omniscient_msg_capnp::message::Builder>();
-                    let mut register_token_msg = msg.get_msg_type().init_register_token_msg();
-                    register_token_msg.set_token(self.token.clone());
-                    register_token_msg.set_join_ind(true);
-                    let mut msg_socket_addr = register_token_msg.get_socket_addr().unwrap();
-                    msg_socket_addr.set_ip(&self.listen_addr.ip().to_string()[..]);
-                    msg_socket_addr.set_port(self.listen_addr.port());
-                }
-
-                //send join message
-                capnp::serialize::write_message(&mut stream, &msg_builder).unwrap();
-            },
-            None => {},
-        }
-
         //create listener
         let listener = match TcpListener::bind(self.listen_addr) {
             Ok(listener) => listener,
@@ -156,10 +133,14 @@ impl OmniscientService {
                                     let peer_table_msg = msg.get_msg_type().init_peer_table_msg();
 
                                     let peer_table = peer_table.read().unwrap();
-                                    let mut peers = peer_table_msg.init_peers((peer_table.len() as u32) + 1);
+                                    let mut peers = peer_table_msg.init_peers(peer_table.len() as u32);
 
                                     let mut index = 0;
                                     for (peer_token, peer_socket_addr) in peer_table.iter() {
+                                        if register_token_msg.get_token() == *peer_token {
+                                            continue;
+                                        }
+
                                         let mut peer = peers.borrow().get(index); 
                                         peer.set_token(*peer_token);
                                         peer.set_ip(&peer_socket_addr.ip().to_string()[..]);
@@ -206,6 +187,29 @@ impl OmniscientService {
                 });
             }
         });
+
+        //send join message to seed_addr
+        match self.seed_addr {
+            Some(seed_addr) => {
+                let mut stream = TcpStream::connect(seed_addr).unwrap();
+
+                //create join message
+                let mut msg_builder = capnp::message::Builder::new_default();
+                {
+                    let msg = msg_builder.init_root::<omniscient_msg_capnp::message::Builder>();
+                    let mut register_token_msg = msg.get_msg_type().init_register_token_msg();
+                    register_token_msg.set_token(self.token.clone());
+                    register_token_msg.set_join_ind(true);
+                    let mut msg_socket_addr = register_token_msg.get_socket_addr().unwrap();
+                    msg_socket_addr.set_ip(&self.listen_addr.ip().to_string()[..]);
+                    msg_socket_addr.set_port(self.listen_addr.port());
+                }
+
+                //send join message
+                capnp::serialize::write_message(&mut stream, &msg_builder).unwrap();
+            },
+            None => {},
+        }
 
         (handle, rx)
     }
