@@ -11,7 +11,7 @@ cqdb - https://github.com/hamersaw/cqdb
 
 TODO
 ----
-* switch all message passing to capnproto
-* lookup_msg - return addr_msg or result_msg
-* complete omniscient service - lots of work still
-* complete chord service - put on back burner
+* send information of joining node to all other nodes
+* omniscient service
+* chord service
+* pastry service
