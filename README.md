@@ -11,7 +11,8 @@ cqdb - https://github.com/hamersaw/cqdb
 
 TODO
 ----
-* send information of joining node to all other nodes
+* process peer table msg
+* remove unnecessary groups in capnproto message - ex (lookup_msg could just be lookup_msg @0 :Uint64)
 * omniscient service
 * chord service
 * pastry service

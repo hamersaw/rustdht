@@ -17,7 +17,7 @@ struct Message {
 			token @5 :UInt64;
 		}
 		peerTableMsg :group {
-			peers @6 :List(SocketAddr);
+			peers @6 :List(PeerAddr);
 		}
 		registerTokenMsg :group {
 			token @7 :UInt64;
@@ -28,6 +28,12 @@ struct Message {
 			errMsg @10 :Text;
 		}
 	}
+}
+
+struct PeerAddr {
+	token @0 :UInt64;
+	ip @1 :Text;
+	port @2 :UInt16;
 }
 
 struct SocketAddr {

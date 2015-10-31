@@ -1,6 +1,6 @@
 extern crate capnp;
 use message_capnp;
-use message_capnp::message::msg_type::{GenericMsg,JoinMsg,LookupMsg,RegisterTokenMsg,ResultMsg};
+use message_capnp::message::msg_type::{GenericMsg,JoinMsg,LookupMsg,PeerTableMsg,RegisterTokenMsg,ResultMsg};
 
 use event::Event;
 
@@ -112,12 +112,12 @@ impl OmniscientService {
 
                             //create result message
                             let mut msg_builder = capnp::message::Builder::new_default();
-                            let mut peer_table = peer_table.write().unwrap();
                             {
                                 let msg = msg_builder.init_root::<message_capnp::message::Builder>();
                                 let mut result_msg = msg.get_msg_type().init_result_msg();
 
                                 //add token and socket address to peer table
+                                let mut peer_table = peer_table.write().unwrap();
                                 match add_token(&mut peer_table, join_msg.get_token(), socket_addr) {
                                     Ok(token_added) => {
                                         result_msg.set_success(token_added);
@@ -133,8 +133,30 @@ impl OmniscientService {
                             //send result message
                             capnp::serialize::write_message(&mut stream, &msg_builder).unwrap();
 
-                            //TODO send peer table to joining node
-                            
+                            //create peer table message
+                            let mut msg_builder = capnp::message::Builder::new_default();
+                            {
+                                let msg = msg_builder.init_root::<message_capnp::message::Builder>();
+                                let peer_table_msg = msg.get_msg_type().init_peer_table_msg();
+
+                                let peer_table = peer_table.read().unwrap();
+                                let mut peers = peer_table_msg.init_peers(peer_table.len() as u32);
+
+                                let mut index = 0;
+                                for (peer_token, peer_socket_addr) in peer_table.iter() {
+                                    let mut peer = peers.borrow().get(index); 
+                                    peer.set_token(*peer_token);
+                                    peer.set_ip(&peer_socket_addr.ip().to_string()[..]);
+                                    peer.set_port(peer_socket_addr.port());
+
+                                    index += 1;
+                                }
+                            }
+
+                            //send peer table message to joining node
+                            let mut stream = TcpStream::connect(socket_addr).unwrap();
+                            capnp::serialize::write_message(&mut stream, &msg_builder).unwrap();
+
                             //create register token message
                             let mut msg_builder = capnp::message::Builder::new_default();
                             {
@@ -145,6 +167,7 @@ impl OmniscientService {
                             }
 
                             //send register token message to all peers
+                            let peer_table = peer_table.read().unwrap();
                             for (peer_token, peer_socket_addr) in peer_table.iter() {
                                 if join_msg.get_token() == *peer_token {
                                     continue;
@@ -193,17 +216,21 @@ impl OmniscientService {
                             //send result message
                             capnp::serialize::write_message(&mut stream, &msg_builder).unwrap();
                         },
+                        Ok(PeerTableMsg(peer_table_msg)) => {
+                            //TODO send peer table event to user
+                            
+                            //TODO add tokens from message to peer table
+                        },
                         Ok(RegisterTokenMsg(register_token_msg)) => {
-                            //TODO send event to tx
+                            let msg_socket_addr = register_token_msg.get_socket_addr().unwrap();
+                            let ip_addr = Ipv4Addr::from_str(&msg_socket_addr.get_ip().unwrap()[..]).unwrap();
+                            let socket_addr = SocketAddrV4::new(ip_addr, msg_socket_addr.get_port());
+                            tx.send(Event::RegisterTokenMsg(register_token_msg.get_token(), socket_addr.clone())).unwrap();
 
                             let mut msg_builder = capnp::message::Builder::new_default();
                             {
                                 let msg = msg_builder.init_root::<message_capnp::message::Builder>();
                                 let mut result_msg = msg.get_msg_type().init_result_msg();
-
-                                let msg_socket_addr = register_token_msg.get_socket_addr().unwrap();
-                                let ip_addr = Ipv4Addr::from_str(&msg_socket_addr.get_ip().unwrap()[..]).unwrap();
-                                let socket_addr = SocketAddrV4::new(ip_addr, msg_socket_addr.get_port());
 
                                 //add token and socket address to peer table
                                 let mut peer_table = peer_table.write().unwrap();
@@ -246,11 +273,13 @@ impl OmniscientService {
         add_token(&mut peer_table, token, socket_addr)
     }
     
-    pub fn send_msg(&self, token: u64, msg: Vec<u8>) -> Result<(), String> {
+    //pub fn send_msg(&self, token: u64, msg: Vec<u8>) -> Result<(), String> {
+    pub fn send_msg(&self, _: u64, _: Vec<u8>) -> Result<(), String> {
         unimplemented!();
     }
 
-    pub fn broadcast_msg(&self, msg: Vec<u8>) -> Result<(), String> {
+    //pub fn broadcast_msg(&self, msg: Vec<u8>) -> Result<(), String> {
+    pub fn broadcast_msg(&self, _: Vec<u8>) -> Result<(), String> {
         unimplemented!();
     }
 
