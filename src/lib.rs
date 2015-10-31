@@ -1,10 +1,8 @@
 extern crate capnp;
 
-pub mod event;
-pub mod service;
-
-pub mod message_capnp {
-    include!(concat!(env!("OUT_DIR"), "/message_capnp.rs"));
+pub mod omniscient;
+pub mod omniscient_msg_capnp {
+    include!(concat!(env!("OUT_DIR"), "/omniscient_msg_capnp.rs"));
 }
 
 #[test]
