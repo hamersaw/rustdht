@@ -1,4 +1,4 @@
-@0xd25f36c02ae1cd9d;
+@0xf25f36c02ae1cd9d;
 
 struct Message {
 	msgType :union {
