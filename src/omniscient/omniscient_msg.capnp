@@ -3,29 +3,25 @@
 struct Message {
 	msgType :union {
 		addrMsg :group {
-			socketAddr @0:SocketAddr;
+			socketAddr @0 :SocketAddr;
 		}
 		genericMsg :group {
 			data @1 :Data;
 		}
-		joinMsg :group {
-			id @2 :Text;
-			token @3 :UInt64;
-			socketAddr @4 :SocketAddr;
-		}
 		lookupMsg :group {
-			token @5 :UInt64;
+			token @2 :UInt64;
 		}
 		peerTableMsg :group {
-			peers @6 :List(PeerAddr);
+			peers @3 :List(PeerAddr);
 		}
 		registerTokenMsg :group {
-			token @7 :UInt64;
-			socketAddr @8 :SocketAddr;
+			token @4 :UInt64;
+			socketAddr @5 :SocketAddr;
+			joinInd @6 :Bool;
 		}
 		resultMsg :group {
-			success @9 :Bool;
-			errMsg @10 :Text;
+			success @7 :Bool;
+			errMsg @8 :Text;
 		}
 	}
 }
