@@ -73,6 +73,8 @@ impl OmniscientService {
 
         //start listening
         let peer_table = self.peer_table.clone();
+        let token = self.token.clone();
+        let listen_addr = self.listen_addr.clone();
         let handle = thread::spawn(move || {
             for stream in listener.incoming() {
                 let peer_table = peer_table.clone();
@@ -154,7 +156,7 @@ impl OmniscientService {
                                     let peer_table_msg = msg.get_msg_type().init_peer_table_msg();
 
                                     let peer_table = peer_table.read().unwrap();
-                                    let mut peers = peer_table_msg.init_peers(peer_table.len() as u32);
+                                    let mut peers = peer_table_msg.init_peers((peer_table.len() as u32) + 1);
 
                                     let mut index = 0;
                                     for (peer_token, peer_socket_addr) in peer_table.iter() {
@@ -166,7 +168,11 @@ impl OmniscientService {
                                         index += 1;
                                     }
 
-                                    //TODO add yourself to the peer table being sent or send a register token message to the joining node
+                                    //add yourself to the peer table
+                                    let mut peer = peers.borrow().get(index);
+                                    peer.set_token(token);
+                                    peer.set_ip(&listen_addr.ip().to_string()[..]);
+                                    peer.set_port(listen_addr.port());
                                 }
 
                                 //send peer table message to joining node

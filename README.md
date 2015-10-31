@@ -11,7 +11,5 @@ cqdb - https://github.com/hamersaw/cqdb
 
 TODO
 ----
-* add yourself to the peer table or send a register token msg back
-* remove unnecessary groups in capnproto message - ex (lookup_msg could just be lookup_msg @0 :Uint64)
-* gossiping service
-* chord service
+* derive a better way to send generic messages
+* gossiping and chord service
