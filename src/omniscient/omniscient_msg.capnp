@@ -5,18 +5,16 @@ struct Message {
 		addrMsg :group {
 			socketAddr @0 :SocketAddr;
 		}
-		genericMsg :group {
-			data @1 :Data;
-		}
 		lookupMsg :group {
-			token @2 :UInt64;
+			token @1 :UInt64;
 		}
-		peerTableMsg :group {
-			peers @3 :List(PeerAddr);
+		lookupTableMsg :group {
+			entries @2 :List(LookupEntry);
 		}
 		registerTokenMsg :group {
-			token @4 :UInt64;
-			socketAddr @5 :SocketAddr;
+			token @3 :UInt64;
+			appAddr @4 :SocketAddr;
+			serviceAddr @5 :SocketAddr;
 			joinInd @6 :Bool;
 		}
 		resultMsg :group {
@@ -26,7 +24,7 @@ struct Message {
 	}
 }
 
-struct PeerAddr {
+struct LookupEntry {
 	token @0 :UInt64;
 	ip @1 :Text;
 	port @2 :UInt16;
