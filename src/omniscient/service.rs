@@ -80,7 +80,7 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
                         }
 
                         //send event
-                        tx.send(Event::PeerTableMsgEvent(map)).unwrap();
+                        tx.send(Event::LookupTableMsgEvent(map)).unwrap();
                     },
                     Ok(RegisterTokenMsg(register_token_msg)) => {
                         //add entry to lookup table
