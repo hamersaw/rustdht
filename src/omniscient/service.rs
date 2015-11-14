@@ -17,6 +17,12 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
     let service_addr_table = Arc::new(RwLock::new(BTreeMap::new()));
     let (tx, rx) = channel::<Event>();
 
+    //add your token to the peer table
+    {
+        let mut lookup_table = lookup_table.write().unwrap();
+        lookup_table.insert(token, app_addr);
+    }
+
     //clone variables
     let lookup_table = lookup_table.clone();
     let service_addr_table = service_addr_table.clone();
