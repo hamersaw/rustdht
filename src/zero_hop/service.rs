@@ -1,8 +1,8 @@
 extern crate capnp;
-use omniscient_msg_capnp;
-use omniscient_msg_capnp::message::msg_type::{LookupMsg,LookupTableMsg,RegisterTokenMsg};
+use zero_hop_msg_capnp;
+use zero_hop_msg_capnp::message::msg_type::{LookupMsg,LookupTableMsg,RegisterTokenMsg};
 
-use omniscient::event::Event;
+use zero_hop::event::Event;
 
 use std::collections::BTreeMap;
 use std::io::{Read,Write};
@@ -40,7 +40,7 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
 
                 //read capnproto message
                 let msg_reader = capnp::serialize::read_message(&mut stream, ::capnp::message::ReaderOptions::new()).unwrap();
-                let msg = msg_reader.get_root::<omniscient_msg_capnp::message::Reader>().unwrap();
+                let msg = msg_reader.get_root::<zero_hop_msg_capnp::message::Reader>().unwrap();
 
                 //parse out message
                 match msg.get_msg_type().which() {
@@ -50,7 +50,7 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
                         //create result message
                         let mut msg_builder = capnp::message::Builder::new_default();
                         {
-                            let msg = msg_builder.init_root::<omniscient_msg_capnp::message::Builder>();
+                            let msg = msg_builder.init_root::<zero_hop_msg_capnp::message::Builder>();
 
                             //lookup token in peer table and create return message
                             let lookup_table = lookup_table.read().unwrap();
@@ -110,7 +110,7 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
                             //create peer table message
                             let mut msg_builder = capnp::message::Builder::new_default();
                             {
-                                let msg = msg_builder.init_root::<omniscient_msg_capnp::message::Builder>();
+                                let msg = msg_builder.init_root::<zero_hop_msg_capnp::message::Builder>();
                                 let lookup_table_msg = msg.get_msg_type().init_lookup_table_msg();
 
                                 let lookup_table = lookup_table.read().unwrap();
@@ -144,7 +144,7 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
                             //create register token message
                             let mut msg_builder = capnp::message::Builder::new_default();
                             {
-                                let msg = msg_builder.init_root::<omniscient_msg_capnp::message::Builder>();
+                                let msg = msg_builder.init_root::<zero_hop_msg_capnp::message::Builder>();
                                 let mut rt_msg = msg.get_msg_type().init_register_token_msg();
                                 rt_msg.set_token(register_token_msg.get_token());
                                 rt_msg.set_app_addr(register_token_msg.get_app_addr().unwrap()).unwrap();
@@ -182,7 +182,7 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
             //create join message
             let mut msg_builder = capnp::message::Builder::new_default();
             {
-                let msg = msg_builder.init_root::<omniscient_msg_capnp::message::Builder>();
+                let msg = msg_builder.init_root::<zero_hop_msg_capnp::message::Builder>();
                 let mut register_token_msg = msg.get_msg_type().init_register_token_msg();
                 register_token_msg.set_token(token.clone());
                 register_token_msg.set_join_ind(true);
