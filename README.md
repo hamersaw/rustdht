@@ -1,7 +1,7 @@
-#rustp2p
+#rustdht
 
 ##Overview
-This library is a generic p2p framework written in rust.
+This library is a generic distributed hash table framework written in rust.
 
 ##Examples
 - cqdb - https://github.com/hamersaw/cqdb
