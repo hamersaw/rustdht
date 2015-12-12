@@ -8,4 +8,5 @@ This library is a generic p2p framework written in rust.
 - echo-server - https://github.com/hamersaw/echo-server
 
 ##TODO
-- gossiping and chord service
+- gossiping service - send probe message
+- chord service

@@ -5,7 +5,7 @@ pub mod zero_hop_msg_capnp {
     include!(concat!(env!("OUT_DIR"), "/zero_hop_msg_capnp.rs"));
 }
 
-#[test]
-fn base() {
-
+pub mod gossiping;
+pub mod gossiping_msg_capnp {
+    include!(concat!(env!("OUT_DIR"), "/gossiping_msg_capnp.rs"));
 }
