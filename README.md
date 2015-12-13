@@ -4,7 +4,7 @@
 This library is a generic distributed hash table framework written in rust.
 
 ##Examples
-- cqdb - https://github.com/hamersaw/cqdb
+- fuzzydb - https://github.com/hamersaw/fuzzydb
 - echo-server - https://github.com/hamersaw/echo-server
 
 ##TODO
