@@ -1,6 +1,6 @@
 [package]
 name = "rustdht"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Dan Rammer <hamersaw@gmail.com>"]
 build = "build.rs"
 
@@ -9,3 +9,14 @@ capnpc = "0.5.0"
 
 [dependencies]
 capnp = "0.5.0"
+
+[[example]]
+name = "echo_server"
+path = "examples/echo_server/echo_server.rs"
+
+[[example]]
+name = "echo_client"
+path = "examples/echo_server/echo_client.rs"
+
+[dev-dependencies]
+argparse = "0.2.1"

@@ -1,19 +1,11 @@
-@0xf25f36c02ae1cd9d;
+@0xff59a08fd3e241c3;
 
 struct Message {
 	msgType :union {
-		addrMsg :group {
-			socketAddr @0 :SocketAddr;
-		}
-		lookupMsg :group {
-			token @1 :UInt64;
-		}
-		lookupTableMsg :group {
-			entries @2 :List(LookupEntry);
-		}
-		probeMsg :group {
-			timestamp @3 :UInt64;
-		}
+		addrMsg @0 :SocketAddr;
+		heartbeatMsg @1: Void;
+		lookupMsg @2 :UInt64;
+		lookupTableMsg @3 :List(LookupEntry);
 		registerTokenMsg :group {
 			token @4 :UInt64;
 			appAddr @5 :SocketAddr;

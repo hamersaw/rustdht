@@ -1,6 +1,6 @@
 extern crate capnp;
 use gossiping_msg_capnp;
-use gossiping_msg_capnp::message::msg_type::{LookupMsg,LookupTableMsg,RegisterTokenMsg};
+use gossiping_msg_capnp::message::msg_type::{HeartbeatMsg,LookupTableMsg,RegisterTokenMsg};
 
 use gossiping::event::Event;
 
@@ -12,7 +12,7 @@ use std::sync::{Arc,RwLock};
 use std::sync::mpsc::{channel,Receiver};
 use std::thread;
 
-pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: SocketAddrV4,  seed_addr: Option<SocketAddrV4>, lookup_table: Arc<RwLock<BTreeMap<u64,SocketAddrV4>>>) -> Receiver<Event> {
+pub fn start(token: u64, app_addr: SocketAddrV4, service_addr: SocketAddrV4,  seed_addr: Option<SocketAddrV4>, lookup_table: Arc<RwLock<BTreeMap<u64,SocketAddrV4>>>) -> Receiver<Event> {
     //create variables needed and clone
     let service_addr_table = Arc::new(RwLock::new(BTreeMap::new()));
     let (tx, rx) = channel::<Event>();
@@ -24,25 +24,59 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
     }
 
     //start thread that periodically probes all peers
-    let lookup_table = lookup_table.clone();
-    let service_addr_table_clone = service_addr_table.clone();
+    let (lookup_table1, service_addr_table1, tx1) = (lookup_table.clone(), service_addr_table.clone(), tx.clone());
     let _ = thread::spawn(move || {
-        let service_addr_table = service_addr_table_clone.clone();
+        let service_addr_table2 = service_addr_table1.clone();
 
         loop {
-            thread::sleep_ms(10000);
+            thread::sleep_ms(2500);
 
-            let service_addr_table = service_addr_table.read().unwrap();
-            for (peer_token, peer_socket_addr) in service_addr_table.iter() {
-                println!("sending probe message to {} for token {}", peer_socket_addr, peer_token);
-                //TODO - if probe fails send event and remove token from lookup_table and service_addr_table
+            //create heartbeat message
+            let mut msg_builder = capnp::message::Builder::new_default();
+            {
+                let msg = msg_builder.init_root::<gossiping_msg_capnp::message::Builder>();
+                msg.get_msg_type().set_heartbeat_msg(());
+            }
+
+            //send heartbeat message to each peer
+            let mut remove_tokens = vec!();
+            {
+                let service_addr_table3 = service_addr_table2.read().unwrap();
+                for (token, socket_addr) in service_addr_table3.iter() {
+                    let mut stream = match TcpStream::connect(socket_addr) {
+                        Ok(stream) => stream,
+                        Err(_) => {
+                            tx1.send(Event::RemoveNodeEvent(*token, *socket_addr)).unwrap();
+                            remove_tokens.push(*token);
+                            continue;
+                        },
+       
+                    };
+
+                    match capnp::serialize::write_message(&mut stream, &msg_builder) {
+                        Err(_) => {
+                            tx1.send(Event::RemoveNodeEvent(*token, *socket_addr)).unwrap();
+                            remove_tokens.push(*token);
+                        },
+                        _ => {},
+                    }
+                }
+            }
+
+            //remove tokens from service_addr_table
+            {
+                let mut service_addr_table4 = service_addr_table2.write().unwrap();
+                let mut lookup_table2 = lookup_table1.write().unwrap();
+                for token in remove_tokens {
+                    service_addr_table4.remove(&token);
+                    lookup_table2.remove(&token);
+                }
             }
         }
     });
 
     //start listening
-    let lookup_table = lookup_table.clone();
-    let service_addr_table = service_addr_table.clone();
+    let (lookup_table, service_addr_table) = (lookup_table.clone(), service_addr_table.clone());
     let listener = TcpListener::bind(service_addr).unwrap();
     let _ = thread::spawn(move || {
         for stream in listener.incoming() {
@@ -59,37 +93,10 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
 
                 //parse out message
                 match msg.get_msg_type().which() {
-                    Ok(LookupMsg(lookup_msg)) => {
-                        tx.send(Event::LookupMsgEvent(lookup_msg.get_token())).unwrap();
-
-                        //create result message
-                        let mut msg_builder = capnp::message::Builder::new_default();
-                        {
-                            let msg = msg_builder.init_root::<gossiping_msg_capnp::message::Builder>();
-
-                            //lookup token in peer table and create return message
-                            let lookup_table = lookup_table.read().unwrap();
-                            match lookup(&lookup_table, lookup_msg.get_token()) {
-                                Some(socket_addr) => {
-                                    let addr_msg = msg.get_msg_type().init_addr_msg();
-                                    let mut msg_socket_addr = addr_msg.get_socket_addr().unwrap();
-                                    msg_socket_addr.set_ip(&socket_addr.ip().to_string()[..]);
-                                    msg_socket_addr.set_port(socket_addr.port());
-                                },
-                                None => {
-                                    let mut result_msg = msg.get_msg_type().init_result_msg();
-                                    result_msg.set_success(true);
-                                    result_msg.set_err_msg("");
-                                },
-                            };
-                        }
-
-                        //send result message
-                        capnp::serialize::write_message(&mut stream, &msg_builder).unwrap();
-                    },
+                    Ok(HeartbeatMsg(_)) => {},
                     Ok(LookupTableMsg(lookup_table_msg)) => {
                         let mut map: BTreeMap<u64,SocketAddrV4> = BTreeMap::new();
-                        for lookup_entry in lookup_table_msg.get_entries().unwrap().iter() {
+                        for lookup_entry in lookup_table_msg.unwrap().iter() {
                             let ip_addr = Ipv4Addr::from_str(&lookup_entry.get_ip().unwrap()[..]).unwrap();
                             let socket_addr = SocketAddrV4::new(ip_addr, lookup_entry.get_port());
                             
@@ -109,7 +116,7 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
                             let msg_app_addr = register_token_msg.get_app_addr().unwrap();
                             let ip_addr = Ipv4Addr::from_str(&msg_app_addr.get_ip().unwrap()[..]).unwrap();
                             let socket_addr = SocketAddrV4::new(ip_addr, msg_app_addr.get_port());
-                            tx.send(Event::RegisterTokenMsgEvent(register_token_msg.get_token(), socket_addr.clone())).unwrap();
+                            tx.send(Event::RegisterNodeEvent(register_token_msg.get_token(), socket_addr.clone())).unwrap();
 
                             //add token and socket address to peer table
                             let mut lookup_table = lookup_table.write().unwrap();
@@ -126,10 +133,8 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
                             let mut msg_builder = capnp::message::Builder::new_default();
                             {
                                 let msg = msg_builder.init_root::<gossiping_msg_capnp::message::Builder>();
-                                let lookup_table_msg = msg.get_msg_type().init_lookup_table_msg();
-
                                 let lookup_table = lookup_table.read().unwrap();
-                                let mut lookup_entries = lookup_table_msg.init_entries(lookup_table.len() as u32);
+                                let mut lookup_table_msg = msg.get_msg_type().init_lookup_table_msg(lookup_table.len() as u32);
 
                                 let mut index = 0;
                                 for (token, socket_addr) in lookup_table.iter() {
@@ -137,7 +142,7 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
                                         continue;
                                     }
 
-                                    let mut lookup_entry = lookup_entries.borrow().get(index); 
+                                    let mut lookup_entry = lookup_table_msg.borrow().get(index); 
                                     lookup_entry.set_token(*token);
                                     lookup_entry.set_ip(&socket_addr.ip().to_string()[..]);
                                     lookup_entry.set_port(socket_addr.port());
@@ -146,7 +151,7 @@ pub fn start(_: String, token: u64, app_addr: SocketAddrV4, service_addr: Socket
                                 }
 
                                 //add yourto the peer table
-                                let mut lookup_entry = lookup_entries.borrow().get(index);
+                                let mut lookup_entry = lookup_table_msg.borrow().get(index);
                                 lookup_entry.set_token(token);
                                 lookup_entry.set_ip(&app_addr.ip().to_string()[..]);
                                 lookup_entry.set_port(app_addr.port());
