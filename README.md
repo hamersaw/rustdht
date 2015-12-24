@@ -1,7 +1,7 @@
 #rustdht
 
 ##Overview
-This library is a generic distributed hash table framework written in rust.
+Rustdht provides a generic implementation for a zero hop dht.
 
 ##Running Echo Server Example
 ####Server
@@ -25,7 +25,7 @@ This library is a generic distributed hash table framework written in rust.
 ./echo_client -i 127.0.0.1 -p 15605
 ```
 
-##
+##Projects Using rustdht
 - fuzzydb (https://github.com/hamersaw/fuzzydb)
 
 ##TODO
