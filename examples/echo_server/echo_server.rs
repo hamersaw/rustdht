@@ -9,7 +9,7 @@ pub mod message_capnp {
 use message_capnp::echo_server_msg::msg_type::{ClientEchoMsg,EchoMsg};
 
 extern crate rustdht;
-use rustdht::gossiping::event::Event;
+use rustdht::event::Event;
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr,SocketAddrV4,TcpListener,TcpStream};
@@ -18,7 +18,6 @@ use std::sync::{Arc,RwLock};
 use std::thread;
 
 fn main() {
-    let mut id = "World".to_string();
     let mut token: u64 = 0;
     let mut app_ip: String = "127.0.0.1".to_string();
     let mut app_port: u16 = 0;
@@ -28,9 +27,8 @@ fn main() {
     {    //solely to limit scope of parser variable
         let mut parser = ArgumentParser::new();
         parser.set_description("start up a echo server");
-        parser.refer(&mut id).add_option(&["-i", "--id"], Store, "id of node").required();
         parser.refer(&mut token).add_option(&["-t", "--token"], Store, "token of node").required();
-        parser.refer(&mut app_ip).add_option(&["-l", "--listen-ip"], Store, "ip address for application and service to listen on").required();
+        parser.refer(&mut app_ip).add_option(&["-i", "--listen-ip"], Store, "ip address for application and service to listen on").required();
         parser.refer(&mut app_port).add_option(&["-a", "--app-port"], Store, "port for application to listen on").required();
         parser.refer(&mut service_port).add_option(&["-p", "--service-port"], Store, "port for the p2p service listen on").required();
         parser.refer(&mut seed_ip).add_option(&["-s", "--seed-ip"], Store, "p2p service seed node ip address");
@@ -54,7 +52,7 @@ fn main() {
 
     //start the p2p service
     let lookup_table = Arc::new(RwLock::new(BTreeMap::new()));
-    let rx = rustdht::gossiping::service::start(id, token, app_addr, service_addr, seed_addr, lookup_table.clone());
+    let rx = rustdht::service::start(token, app_addr, service_addr, seed_addr, lookup_table.clone());
 
     //start listening on the application socket
     let listener = TcpListener::bind(app_addr).unwrap();
@@ -73,7 +71,7 @@ fn main() {
                     Ok(ClientEchoMsg(client_echo_msg)) => {
                         //search lookup table to find address responsible for token
                         let lookup_table = lookup_table.read().unwrap();
-                        let socket_addr = match  rustdht::gossiping::service::lookup(&lookup_table, client_echo_msg.get_token()) {
+                        let socket_addr = match  rustdht::service::lookup(&lookup_table, client_echo_msg.get_token()) {
                             Some(socket_addr) => socket_addr,
                             None => panic!("Unable to find address responsible for token"),
                         };
